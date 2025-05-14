@@ -1,8 +1,10 @@
 __pycache__
 .idea
-venv
+*venv
 models
 data
-cuda_kernals
 *.ipynb
 .DS_Store
+.vs
+.vscode
+build

@@ -1,21 +1,14 @@
+import numpy as np
+
+from .initializers import *
+from .layers import *
+from .activations import *
+from .losses import *
+from .metrics import * 
+
+import pickle
 import copy
 
-import numpy as np
-from py_modules.initializers import *
-from py_modules.layers import *
-from py_modules.activations import *
-from py_modules.losses import *
-from py_modules.metrics import *
-import pickle
-
-# TODO: Transition saving from Pickle to NumPy's savez?
-
-# Notes
-# - One Hot: Categories have no inherent order (i.e. moving from red to blue is meaningless as a label)
-# - General rule is to not use One Hot if number of categorical variables > 10
-
-# Label Encoding: Categories have an inherent order (i.e. moving from medium to tall)
-# -
 
 class Network:
 
@@ -24,16 +17,16 @@ class Network:
         self.default_weight_initializer = default_weight_initializer
         self.default_bias_initializer = default_bias_initializer
 
-        self.softmax_classifier_output = None
+
+        self.input_layer = None
+
         self.loss = None
         self.optimizer = None
         self.accuracy = None
-        self.metrics = None
-        self.input_layer = None
-        self.trainable_layers = None
+
+        self.softmax_classifier_output = None
 
     def add(self, layer):
-
         if hasattr(layer, 'weight_initializer'):
             if layer.weight_initializer is None:
                 layer.weight_initializer = self.default_weight_initializer
@@ -44,12 +37,6 @@ class Network:
         self.layers.append(layer)
         return self # allow expression chaining
 
-    def build(self, input_shape):
-        shape = input_shape
-        for layer in self.layers:
-            if hasattr(layer, 'build'):
-                shape = layer.build(shape)
-
     def set(self, *, loss=None, optimizer=None, accuracy=None):
         if loss is not None:
             self.loss = loss
@@ -58,15 +45,22 @@ class Network:
         if accuracy is not None:
             self.accuracy = accuracy
 
-    def finalize(self):
+    def finalize(self, input_shape):
         self.input_layer = Input()
 
         layer_count = len(self.layers)
 
-
         self.trainable_layers = []
+        shape = input_shape
 
         for i in range(layer_count):
+
+            if hasattr(self.layers[i], 'build'):
+                shape = self.layers[i].build(shape)
+
+            if hasattr(self.layers[i], 'weights'):
+                self.trainable_layers.append(self.layers[i])
+
             if i == 0:
                 self.layers[i].prev = self.input_layer
                 self.layers[i].next = self.layers[i+1]
@@ -78,17 +72,18 @@ class Network:
                 self.layers[i].next = self.loss
                 self.output_layer_activation = self.layers[i]
 
-            if hasattr(self.layers[i], 'weights'):
-                self.trainable_layers.append(self.layers[i])
-
             if self.loss is not None:
-                self.loss.remember_trainable_layers(self.trainable_layers)
+                self.loss.set_trainable_layers(self.trainable_layers)
 
         if isinstance(self.layers[-1], Softmax) and \
                 isinstance(self.loss, CategoricalCrossEntropy):
             self.softmax_classifier_output = SoftmaxCrossEntropy()
 
     def train(self, X, y, *, epochs=1000, batch_size=None, print_every=100, validation_data=None):
+
+        if self.input_layer is None:
+            self.finalize(input_shape=(None, X.shape[-1]))
+
         self.accuracy.init(y)
 
         train_steps = 1
@@ -153,8 +148,6 @@ class Network:
             if validation_data is not None:
                 self.evaluate(*validation_data, batch_size=batch_size, epoch=epoch, epochs=epochs)
 
-
-
     def evaluate(self, X_val, y_val, *, batch_size=None, epoch=None, epochs=None):
         validation_steps = 1
 
@@ -178,7 +171,6 @@ class Network:
 
             output = self.forward(batch_X, training=False)
 
-            # self.loss.calculate(output, batch_y)
             self.loss.forward(output, batch_y)
 
             predictions = self.output_layer_activation.predictions(output)
@@ -259,8 +251,7 @@ class Network:
         with open(path, 'rb') as f:
             self.set_params(pickle.load(f))
 
-    def save_params(self, path):
-
+    def save_params(self, path): # NumPy savez instead? 
         model = copy.deepcopy(self)
 
         model.loss.new_pass()
@@ -270,7 +261,7 @@ class Network:
         model.loss.__dict__.pop('dinputs', None)
 
         for layer in model.layers:
-            for prop in ['inputs', 'outputs', 'dinputs', 'dweights', 'dbiases']:
+            for prop in ['inputs', 'outputs', 'dinputs', 'dweights', 'dbiases', 'built']:
                 layer.__dict__.pop(prop, None)
 
         with open(path, 'wb') as f:
@@ -280,11 +271,25 @@ class Network:
     def load(path):
         with open(path, 'rb') as f:
             model = pickle.load(f)
-
         return model
+    
 
     def summary(self):
-        pass
+        total_params = 0
+        print(f"{'Layer(type)':<20}{'Output Shape':<20}{'Param #':<12}")
+        for layer in self.trainable_layers:
+            w_count = int(np.prod(layer.weights.shape))
+            b_count = int(np.prod(layer.biases.shape))
+            layer_params = w_count + b_count
+            total_params += layer_params
+
+            layer_name = type(layer).__name__
+            out_shape = (None, *layer.output.shape[1:])
+            print(f"{layer_name:<20}{str(out_shape):<20}{layer_params:<12}")
+
+        print("-" * 52)
+        print(f"{'Total params:':<40}{total_params:<12}")
+
 
 
 

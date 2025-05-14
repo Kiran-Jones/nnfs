@@ -60,6 +60,7 @@ class Adam:
     def step(self, model):
         lr = self.lr
         for layer in model.trainable_layers:
+
             self._init_layer(layer)
 
             layer.moment1_weights = self.beta_1 * layer.moment1_weights + (1 - self.beta_1) * layer.dweights

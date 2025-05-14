@@ -5,10 +5,8 @@ from abc import ABC, abstractmethod
 class Loss(ABC):
 
     def __init__(self):
-        # Layers whose weights and biases are trainable
         self.trainable_layers = []
 
-        # Used for accumulated data loss
         self.accumulated_sum = 0
         self.accumulated_count = 0
 
@@ -40,7 +38,10 @@ class Loss(ABC):
 
         return regularization_loss
 
-    def remember_trainable_layers(self, trainable_layers):
+    def set_trainable_layers(self, trainable_layers):
+        """
+        Store the trainiable layers of the network
+        """
         self.trainable_layers = trainable_layers
 
     def calculate_accumulated(self, *, include_regularization_loss=False):
@@ -65,12 +66,11 @@ class Loss(ABC):
         """
         Calculate and return data loss and regularization loss (flagged)
         """
-        # Calculate data loss
         sample_losses = self._forward(y_pred, y_true)
         data_loss = np.mean(sample_losses)
 
         self.accumulated_sum += np.sum(sample_losses)
-        self.accumulated_count += len(sample_losses)
+        self.accumulated_count += 1
 
         if include_regularization_loss:
             return data_loss, self.regularization_loss()
@@ -87,7 +87,6 @@ class Loss(ABC):
         """
         Use the subclass _backward() to calculate the gradient of the loss with respect to the output
         """
-        # Calculate gradient
         self._backward(dvalues, y_true)
 
     @abstractmethod
@@ -133,6 +132,49 @@ class SoftmaxCrossEntropy(Loss):
     Combined Softmax activation and cross-entropy loss class
     Improves backward step
     """
+    # def __init__(self):
+    #     self.dinputs = None
+        # self.probs = None
+    
+    # def _forward(self, logits, y_true):
+    #     # ---- Softmax ----
+    #     # shift for numerical stability
+    #     shifted = logits - np.max(logits, axis=1, keepdims=True)
+    #     exp_scores = np.exp(shifted)
+    #     self.probs = exp_scores / np.sum(exp_scores, axis=1, keepdims=True)
+
+    #     # ---- Cross-Entropy ----
+    #     samples = logits.shape[0]
+    #     # handle one-hot or sparse labels
+    #     if y_true.ndim == 2:
+    #         labels = np.argmax(y_true, axis=1)
+    #     else:
+    #         labels = y_true
+
+    #     correct_conf = self.probs[range(samples), labels]
+    #     neg_log = -np.log(correct_conf + 1e-7)
+    #     # return mean loss
+    #     return np.mean(neg_log)
+    
+
+    # def _backward(self, logits, y_true):
+        # """
+        # dL/dlogits = (probs - y_true) / N
+        # where y_true is either one-hot or integer labels.
+        # """
+        # samples = logits.shape[0]
+        # # unpack labels
+        # if y_true.ndim == 2:
+        #     labels = np.argmax(y_true, axis=1)
+        # else:
+        #     labels = y_true
+
+        # # gradient on scores
+        # dinputs = self.probs.copy()
+        # dinputs[range(samples), labels] -= 1
+        # # normalize
+        # self.dinputs = dinputs / samples
+
     def _forward(self, y_pred, y_true):
         pass
 

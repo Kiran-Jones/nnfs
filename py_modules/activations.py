@@ -1,4 +1,6 @@
 import numpy as np
+from .cuda_kernels import *
+from .device import CUDA_AVAILABLE
 from abc import ABC, abstractmethod
 
 #TODO: Add Sigmoid, Tanh
@@ -34,11 +36,17 @@ class ReLU(Activation):
 
     def forward(self, inputs, training):
         self.inputs = inputs
-        self.output = np.maximum(0, inputs)
+        if CUDA_AVAILABLE:
+            self.output = relu_forward_cuda(inputs)
+        else: 
+            self.output = np.maximum(0, inputs)
 
     def backward(self, dvalues):
         self.dinputs = dvalues.copy()
-        self.dinputs[self.inputs <= 0] = 0
+        if CUDA_AVAILABLE:
+            self.dinputs = relu_backward_cuda(self.inputs, self.dinputs)
+        else:
+            self.dinputs[self.inputs <= 0] = 0
 
     def predictions(self, outputs):
         return outputs
@@ -62,8 +70,7 @@ class Softmax(Activation):
 
         for idx, (single_output, single_dvalues) in enumerate(zip(self.output, dvalues)):
             single_output = single_output.reshape(-1, 1)
-            jacobian_matrix = np.diagflat(single_output) - np.dot(single_output.T, single_output)
-
+            jacobian_matrix = np.diagflat(single_output) - single_output @ single_output.T
             self.dinputs[idx] = np.dot(jacobian_matrix, single_dvalues)
 
     def predictions(self, outputs):
