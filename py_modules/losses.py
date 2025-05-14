@@ -1,6 +1,8 @@
 import numpy as np
 from abc import ABC, abstractmethod
 
+from .utils import *
+
 
 class Loss(ABC):
 
@@ -120,7 +122,8 @@ class CategoricalCrossEntropy(Loss):
 
         # One-hot encode if needed
         if len(y_true.shape) == 1:
-            y_true = np.eye(labels)[y_true]
+            to_one_hot(labels, y_true)
+            # y_true = np.eye(labels)[y_true]
 
         self.dinputs = -y_true / dvalues
 
@@ -132,49 +135,6 @@ class SoftmaxCrossEntropy(Loss):
     Combined Softmax activation and cross-entropy loss class
     Improves backward step
     """
-    # def __init__(self):
-    #     self.dinputs = None
-        # self.probs = None
-    
-    # def _forward(self, logits, y_true):
-    #     # ---- Softmax ----
-    #     # shift for numerical stability
-    #     shifted = logits - np.max(logits, axis=1, keepdims=True)
-    #     exp_scores = np.exp(shifted)
-    #     self.probs = exp_scores / np.sum(exp_scores, axis=1, keepdims=True)
-
-    #     # ---- Cross-Entropy ----
-    #     samples = logits.shape[0]
-    #     # handle one-hot or sparse labels
-    #     if y_true.ndim == 2:
-    #         labels = np.argmax(y_true, axis=1)
-    #     else:
-    #         labels = y_true
-
-    #     correct_conf = self.probs[range(samples), labels]
-    #     neg_log = -np.log(correct_conf + 1e-7)
-    #     # return mean loss
-    #     return np.mean(neg_log)
-    
-
-    # def _backward(self, logits, y_true):
-        # """
-        # dL/dlogits = (probs - y_true) / N
-        # where y_true is either one-hot or integer labels.
-        # """
-        # samples = logits.shape[0]
-        # # unpack labels
-        # if y_true.ndim == 2:
-        #     labels = np.argmax(y_true, axis=1)
-        # else:
-        #     labels = y_true
-
-        # # gradient on scores
-        # dinputs = self.probs.copy()
-        # dinputs[range(samples), labels] -= 1
-        # # normalize
-        # self.dinputs = dinputs / samples
-
     def _forward(self, y_pred, y_true):
         pass
 

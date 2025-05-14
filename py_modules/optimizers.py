@@ -7,7 +7,6 @@ class Optimizer(ABC):
     """
     Common Optimizer Interface
     """
-
     @abstractmethod
     def pre_update_params(self):
         """

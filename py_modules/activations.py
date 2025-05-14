@@ -1,9 +1,9 @@
 import numpy as np
-from .cuda_kernels import *
-from .device import CUDA_AVAILABLE
 from abc import ABC, abstractmethod
 
-#TODO: Add Sigmoid, Tanh
+from .cuda_kernels import *
+from .device import CUDA_AVAILABLE
+
 
 class Activation(ABC):
 
@@ -27,6 +27,7 @@ class Activation(ABC):
         Return the prediction of the given outputs
         """
         pass
+
 
 class ReLU(Activation):
     def __init__(self):
@@ -62,7 +63,6 @@ class Softmax(Activation):
         self.inputs = inputs
 
         exp = np.exp(inputs - np.max(inputs, axis=1, keepdims=True))
-
         self.output = exp / np.sum(exp, axis=1, keepdims=True)
 
     def backward(self, dvalues):
@@ -76,14 +76,13 @@ class Softmax(Activation):
     def predictions(self, outputs):
         return np.argmax(outputs, axis=1)
 
+
 class Linear(Activation):
     def __init__(self):
-        self.inputs = None
         self.output = None
         self.dinputs = None
 
     def forward(self, inputs, training):
-        # self.inputs = inputs
         self.output = inputs
 
     def backward(self, dvalues):
@@ -91,3 +90,15 @@ class Linear(Activation):
 
     def predictions(self, outputs):
         return outputs
+    
+
+class Sigmoid(Activation):
+    def forward(self, inputs, training):
+        self.inputs = inputs
+        self.output = 1 / (1 + np.exp(-inputs))
+
+    def backward(self, dvalues):
+        self.dinputs = dvalues * (1 - self.output) * self.output
+
+    def predictions(self, outputs):
+        return (outputs > 0.5) * 1

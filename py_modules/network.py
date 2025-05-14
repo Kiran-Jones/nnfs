@@ -1,13 +1,13 @@
 import numpy as np
+import pickle
+import copy
+import matplotlib.pyplot as plt
 
 from .initializers import *
 from .layers import *
 from .activations import *
 from .losses import *
 from .metrics import * 
-
-import pickle
-import copy
 
 
 class Network:
@@ -17,13 +17,10 @@ class Network:
         self.default_weight_initializer = default_weight_initializer
         self.default_bias_initializer = default_bias_initializer
 
-
         self.input_layer = None
-
         self.loss = None
         self.optimizer = None
         self.accuracy = None
-
         self.softmax_classifier_output = None
 
     def add(self, layer):
@@ -47,9 +44,7 @@ class Network:
 
     def finalize(self, input_shape):
         self.input_layer = Input()
-
         layer_count = len(self.layers)
-
         self.trainable_layers = []
         shape = input_shape
 
@@ -57,7 +52,6 @@ class Network:
 
             if hasattr(self.layers[i], 'build'):
                 shape = self.layers[i].build(shape)
-
             if hasattr(self.layers[i], 'weights'):
                 self.trainable_layers.append(self.layers[i])
 
@@ -79,20 +73,21 @@ class Network:
                 isinstance(self.loss, CategoricalCrossEntropy):
             self.softmax_classifier_output = SoftmaxCrossEntropy()
 
-    def train(self, X, y, *, epochs=1000, batch_size=None, print_every=100, validation_data=None):
+    def train(self, X, y, *, epochs=1000, batch_size=None, print_every=100, validation_data=None, plot=False):
+
+        if plot:
+            plt.ion()
+            self.train_losses, self.val_losses = [], []
+            self.train_accs, self.val_accs = [], []
 
         if self.input_layer is None:
             self.finalize(input_shape=(None, X.shape[-1]))
-
-        self.accuracy.init(y)
-
         train_steps = 1
 
         if batch_size is not None:
             train_steps = len(X) // batch_size
             if train_steps * batch_size < len(X):
                 train_steps += 1
-
         print(f'Epoch {0}/{epochs}')
 
         for epoch in range(1, epochs+1):
@@ -108,16 +103,12 @@ class Network:
                     batch_y = y[step*batch_size:(step+1)*batch_size]
 
                 output = self.forward(batch_X, training=True)
-                
                 data_loss, regularization_loss = self.loss.forward(output, batch_y, include_regularization_loss=True)
-
                 total_loss = data_loss + regularization_loss
 
                 predictions = self.output_layer_activation.predictions(output)
                 accuracy = self.accuracy.calculate(predictions, batch_y)
-
                 self.backward(output, batch_y)
-
                 self.optimizer.step(self)
 
                 if step % print_every == 0 or step == train_steps - 1:
@@ -130,8 +121,6 @@ class Network:
                           # + f'Learning rate: {lr:.4f} ')
                     if step == train_steps - 1:
                         print()
-
-
 
             epoch_data_loss, epoch_regularization_loss = self.loss.calculate_accumulated(include_regularization_loss=True)
             epoch_loss = epoch_data_loss + epoch_regularization_loss
@@ -146,11 +135,32 @@ class Network:
                   # + f'Learning rate: {self.optimizer.lr:.4f} ')
 
             if validation_data is not None:
-                self.evaluate(*validation_data, batch_size=batch_size, epoch=epoch, epochs=epochs)
+                self.evaluate(*validation_data, batch_size=batch_size, epoch=epoch, epochs=epochs, plot=plot)
+            
+            if plot:
+                self.train_losses.append(epoch_loss)
+                self.train_accs.append(epoch_accuracy)
+        if plot:
+            self._plot()
+        
+    
+    def _plot(self):
+        if not self.train_losses or not self.val_losses or not self.train_accs or not self.val_accs:
+            return
+        
+        plt.figure()
+        plt.plot(self.train_losses, label='Training loss')
+        plt.plot(self.val_losses,   label='Testing loss')
+        plt.xlabel('Epoch'); plt.ylabel('Loss'); plt.legend()
 
-    def evaluate(self, X_val, y_val, *, batch_size=None, epoch=None, epochs=None):
+        plt.figure()
+        plt.plot(self.train_accs, label='Training accuracy')
+        plt.plot(self.val_accs,   label='Testing accuracy')
+        plt.xlabel('Epoch'); plt.ylabel('Accuracy'); plt.legend()
+        plt.show()
+
+    def evaluate(self, X_val, y_val, *, batch_size=None, epoch=None, epochs=None, plot=False):
         validation_steps = 1
-
         if batch_size is not None:
             validation_steps = len(X_val) // batch_size
             if validation_steps * batch_size < len(X_val):
@@ -160,23 +170,19 @@ class Network:
         self.accuracy.new_pass()
 
         for step in range(validation_steps):
-
             if batch_size is None:
                 batch_X = X_val
                 batch_y = y_val
-
             else:
                 batch_X = X_val[step*batch_size:(step+1)*batch_size]
                 batch_y = y_val[step*batch_size:(step+1)*batch_size]
 
             output = self.forward(batch_X, training=False)
-
             self.loss.forward(output, batch_y)
-
             predictions = self.output_layer_activation.predictions(output)
             self.accuracy.calculate(predictions, batch_y)
 
-        validation_loss = self.loss.calculate_accumulated()
+        validation_loss = self.loss.calculate_accumulated() / len(X_val) # sdfjksnbfssssssssssssssssssssssss
         validation_accuracy = self.accuracy.calculate_accumulated()
 
         epoch_num = ""
@@ -186,16 +192,18 @@ class Network:
         print(f'Validation Epoch {epoch_num}: ' +
               f'Accuracy: {validation_accuracy:.4f} ' +
               f'Loss: {validation_loss:.4f} ')
+        
+        if plot:
+            self.val_losses.append(validation_loss)
+            self.val_accs.append(validation_accuracy)
+
 
     def predict(self, X, *, batch_size=None):
-
         prediction_steps = 1
-
         if batch_size is not None:
             prediction_steps = len(X) // batch_size
             if prediction_steps * batch_size < len(X):
                 prediction_steps += 1
-
         output = []
 
         for step in range(prediction_steps):
@@ -203,44 +211,32 @@ class Network:
                 batch_X = X
             else:
                 batch_X = X[step*batch_size:(step+1)*batch_size]
-
             batch_output = self.forward(batch_X, training=False)
-
             output.append(batch_output)
         return np.vstack(output)
 
     def forward(self, X, training):
         self.input_layer.forward(X, training)
-
         for layer in self.layers:
             layer.forward(layer.prev.output, training)
-
         return layer.output
-
 
     def backward(self, output, y):
         if self.softmax_classifier_output is not None:
-
             self.softmax_classifier_output.backward(output, y)
-
             self.layers[-1].dinputs = self.softmax_classifier_output.dinputs
 
             for layer in reversed(self.layers[:-1]):
                 layer.backward(layer.next.dinputs)
-
             return
-
         self.loss.backward(output, y)
-
         for layer in reversed(self.layers[:-1]):
             layer.backward(layer.next.dinputs)
 
     def get_params(self):
         params = []
-
         for layer in self.trainable_layers:
             params.append(layer.get_params())
-
         return params
 
     def set_params(self, params):
@@ -251,19 +247,15 @@ class Network:
         with open(path, 'rb') as f:
             self.set_params(pickle.load(f))
 
-    def save_params(self, path): # NumPy savez instead? 
+    def save_params(self, path):
         model = copy.deepcopy(self)
-
         model.loss.new_pass()
         model.accuracy.new_pass()
-
         model.input_layer.__dict__.pop('output', None)
         model.loss.__dict__.pop('dinputs', None)
-
         for layer in model.layers:
             for prop in ['inputs', 'outputs', 'dinputs', 'dweights', 'dbiases', 'built']:
                 layer.__dict__.pop(prop, None)
-
         with open(path, 'wb') as f:
             pickle.dump(model, f)
 
@@ -272,7 +264,6 @@ class Network:
         with open(path, 'rb') as f:
             model = pickle.load(f)
         return model
-    
 
     def summary(self):
         total_params = 0
@@ -282,18 +273,8 @@ class Network:
             b_count = int(np.prod(layer.biases.shape))
             layer_params = w_count + b_count
             total_params += layer_params
-
             layer_name = type(layer).__name__
             out_shape = (None, *layer.output.shape[1:])
             print(f"{layer_name:<20}{str(out_shape):<20}{layer_params:<12}")
-
         print("-" * 52)
         print(f"{'Total params:':<40}{total_params:<12}")
-
-
-
-
-
-
-
-

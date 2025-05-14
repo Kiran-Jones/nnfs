@@ -1,22 +1,19 @@
 import numpy as np
 from abc import ABC, abstractmethod
+
 from .cuda_kernels import *
 from .device import CUDA_AVAILABLE
 
-
-# TODO: Add Convolutional, BatchNorm layers
 
 class Layer(ABC):
     """
     Common Layer Interface
     """
-
     def __init__(self):
         """
         Initalize layers as not yet built
         """
         self.built = False
-
         self.weights = None
         self.output = None
 
@@ -44,6 +41,7 @@ class Layer(ABC):
         param_num = str(len(self.weights) + len(self.biases)).ljust(16)
         param_num = str(len(self.inputs) * len(self.output) + len(self.biases)).ljust(16)
         return layer + shape + param_num
+
 
 class Dense(Layer):
     """
@@ -116,7 +114,6 @@ class Dropout(Layer):
     def __repr__(self):
         return f"Dropout Layer: [Shape: {self.inputs.shape} Dropout Rate: {self.rate}]"
 
-
     def build(self, input_shape):
         self.built = True
         return input_shape
@@ -168,24 +165,20 @@ class Flatten(Layer):
         batch = inputs.shape[0]
         self.output = inputs.reshape(batch, -1)
 
-
     def backward(self, dvalues):
         self.dinputs = dvalues.reshape(self._orig_shape)
 
 
+# https://cs231n.github.io/convolutional-networks/
+class Conv2D(Layer):
+    def build(self, input_shape):
+        pass
 
+    def forward(self, inputs, training):
+        pass
 
-
-
-
-
-
-
-
-
-
-
-
+    def backward(self, dvalues):
+        pass
 
 
 

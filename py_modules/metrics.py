@@ -2,7 +2,6 @@ import numpy as np
 from abc import ABC, abstractmethod
 
 
-
 class Accuracy(ABC):
     """
     Common Accuracy Interface
@@ -29,10 +28,6 @@ class Categorical(Accuracy):
     """
     Categorical Accuracy
     """
-
-    def init(self, y):
-        pass
-
     def compare(self, predictions, y):
         if len(y.shape) == 2:
             y = np.argmax(y, axis=1)

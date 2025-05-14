@@ -2,32 +2,15 @@ import numpy as np
 
 
 def to_categorical(labels):
-    """
-    Converts a binary class matrix (one-hot encoding) to a class vector (integers).
-    For example, for 3 classes, it converts 
-    [[1, 0, 0],
-     [0, 1, 0],
-     [0, 0, 1]]
-     
-    to [0, 1, 2] 
-    """
     return np.argmax(labels, axis=1)
 
 
 def to_one_hot(labels, n_classes=None):
-    """
-    Converts a class vector (integers) to binary class matrix (one-hot encoding).
-    For example, for 3 classes, it converts [0, 1, 2] to
-    [[1, 0, 0],
-     [0, 1, 0],
-     [0, 0, 1]]
-    """
     if n_classes is None:
         n_classes = labels.max() + 1
     one_hot = np.zeros((labels.size, n_classes))
     one_hot[np.arange(labels.size), labels] = 1
     return one_hot
-    return np.eye(n_classes)[labels]
 
 
 def train_test_split(X, y, test_size=0.2):
