@@ -147,15 +147,15 @@ class Network:
     def _plot(self):
         if not self.train_losses or not self.val_losses or not self.train_accs or not self.val_accs:
             return
-        
+        x = range(1, len(self.train_losses) + 1)
         plt.figure()
-        plt.plot(self.train_losses, label='Training loss')
-        plt.plot(self.val_losses,   label='Testing loss')
+        plt.plot(x, self.train_losses, label='Training loss')
+        plt.plot(x, self.val_losses,   label='Testing loss')
         plt.xlabel('Epoch'); plt.ylabel('Loss'); plt.legend()
 
         plt.figure()
-        plt.plot(self.train_accs, label='Training accuracy')
-        plt.plot(self.val_accs,   label='Testing accuracy')
+        plt.plot(x, self.train_accs, label='Training accuracy')
+        plt.plot(x, self.val_accs,   label='Testing accuracy')
         plt.xlabel('Epoch'); plt.ylabel('Accuracy'); plt.legend()
         plt.show()
 
@@ -182,7 +182,7 @@ class Network:
             predictions = self.output_layer_activation.predictions(output)
             self.accuracy.calculate(predictions, batch_y)
 
-        validation_loss = self.loss.calculate_accumulated() / len(X_val) # sdfjksnbfssssssssssssssssssssssss
+        validation_loss = self.loss.calculate_accumulated() / len(X_val)
         validation_accuracy = self.accuracy.calculate_accumulated()
 
         epoch_num = ""

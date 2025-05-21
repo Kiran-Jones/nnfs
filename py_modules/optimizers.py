@@ -1,7 +1,6 @@
 import numpy as np
 from abc import ABC, abstractmethod
 
-# Potential TODO: Add SGD (with momentum), RMSProp, etc.
 
 class Optimizer(ABC):
     """
