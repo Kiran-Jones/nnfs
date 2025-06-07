@@ -1,6 +1,6 @@
 # Neural Network From Scratch
 
-A custom neural network implementation built from the ground up in Python—no deep-learning frameworks required. Leverages NumPy for all core operations, with optional GPU acceleration via custom CUDA kernels and Pybind11 bindings.
+A custom neural network framework built in Python that uses NumPy for all core tensor operations. Optional GPU acceleration is supported through custom CUDA kernels integrated via Pybind11.
 
 ## Features
 - **Flexible architecture**  
